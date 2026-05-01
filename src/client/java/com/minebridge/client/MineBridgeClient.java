@@ -7,6 +7,9 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 
 import org.joml.Vector3f;
 
@@ -109,6 +112,18 @@ public class MineBridgeClient implements ClientModInitializer {
 			} catch (NumberFormatException e) {
 				return jsonError("x, y, and z must be numbers");
 			}
+		}
+
+		else if (command.equals("get_entities")) {
+			return getEntities();
+		}
+
+		else if (command.equals("get_players")) {
+			return getPlayers();
+		}
+
+		else if (command.equals("get_local_player")) {
+			return getLocalPlayer();
 		}
 
 		else if (command.equals("get_block")) {
@@ -349,6 +364,197 @@ public class MineBridgeClient implements ClientModInitializer {
 		});
 
 		return getFutureResult(future);
+	}
+
+	private String getLocalPlayer() {
+		Minecraft client = Minecraft.getInstance();
+		CompletableFuture<String> future = new CompletableFuture<>();
+
+		client.execute(() -> {
+			if (client.player == null) {
+				future.complete(jsonError("player is null"));
+				return;
+			}
+
+			future.complete(entityToJson(client.player));
+		});
+
+		return getFutureResult(future);
+	}
+
+	private String getEntities() {
+		Minecraft client = Minecraft.getInstance();
+		CompletableFuture<String> future = new CompletableFuture<>();
+
+		client.execute(() -> {
+			if (client.level == null) {
+				future.complete(jsonError("level is null"));
+				return;
+			}
+
+			StringBuilder json = new StringBuilder();
+			json.append("[");
+
+			boolean first = true;
+
+			for (Entity entity : client.level.entitiesForRendering()) {
+				if (!first) {
+					json.append(",");
+				}
+
+				first = false;
+				json.append(entityToJson(entity));
+			}
+
+			json.append("]");
+			future.complete(json.toString());
+		});
+
+		return getFutureResult(future);
+	}
+
+	private String getPlayers() {
+		Minecraft client = Minecraft.getInstance();
+		CompletableFuture<String> future = new CompletableFuture<>();
+
+		client.execute(() -> {
+			if (client.level == null) {
+				future.complete(jsonError("level is null"));
+				return;
+			}
+
+			StringBuilder json = new StringBuilder();
+			json.append("[");
+
+			boolean first = true;
+
+			for (Player player : client.level.players()) {
+				if (!first) {
+					json.append(",");
+				}
+
+				first = false;
+				json.append(entityToJson(player));
+			}
+
+			json.append("]");
+			future.complete(json.toString());
+		});
+
+		return getFutureResult(future);
+	}
+
+	private String entityToJson(Entity entity) {
+		StringBuilder json = new StringBuilder();
+
+		json.append("{");
+
+		json.append("\"name\":\"")
+				.append(escapeJson(entity.getName().getString()))
+				.append("\",");
+
+		json.append("\"type\":\"")
+				.append(escapeJson(BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString()))
+				.append("\",");
+
+		json.append("\"uuid\":\"")
+				.append(escapeJson(entity.getUUID().toString()))
+				.append("\",");
+
+		json.append("\"id\":")
+				.append(entity.getId())
+				.append(",");
+
+		json.append("\"is_living\":")
+				.append(entity instanceof LivingEntity)
+				.append(",");
+
+		json.append("\"is_player\":")
+				.append(entity instanceof Player)
+				.append(",");
+
+		json.append("\"is_alive\":")
+				.append(entity.isAlive())
+				.append(",");
+
+		json.append("\"is_on_ground\":")
+				.append(entity.onGround())
+				.append(",");
+
+		json.append("\"is_sprinting\":")
+				.append(entity.isSprinting())
+				.append(",");
+
+		json.append("\"is_swimming\":")
+				.append(entity.isSwimming())
+				.append(",");
+
+		json.append("\"is_crouching\":")
+				.append(entity.isCrouching())
+				.append(",");
+
+		json.append("\"position\":{");
+		json.append("\"x\":").append(entity.getX()).append(",");
+		json.append("\"y\":").append(entity.getY()).append(",");
+		json.append("\"z\":").append(entity.getZ());
+		json.append("},");
+
+		json.append("\"block_position\":{");
+		json.append("\"x\":").append(entity.blockPosition().getX()).append(",");
+		json.append("\"y\":").append(entity.blockPosition().getY()).append(",");
+		json.append("\"z\":").append(entity.blockPosition().getZ());
+		json.append("},");
+
+		json.append("\"rotation\":{");
+		json.append("\"yaw\":").append(entity.getYRot()).append(",");
+		json.append("\"pitch\":").append(entity.getXRot());
+		json.append("},");
+
+		json.append("\"velocity\":{");
+		json.append("\"x\":").append(entity.getDeltaMovement().x).append(",");
+		json.append("\"y\":").append(entity.getDeltaMovement().y).append(",");
+		json.append("\"z\":").append(entity.getDeltaMovement().z);
+		json.append("},");
+
+		json.append("\"bounding_box\":{");
+		json.append("\"min_x\":").append(entity.getBoundingBox().minX).append(",");
+		json.append("\"min_y\":").append(entity.getBoundingBox().minY).append(",");
+		json.append("\"min_z\":").append(entity.getBoundingBox().minZ).append(",");
+		json.append("\"max_x\":").append(entity.getBoundingBox().maxX).append(",");
+		json.append("\"max_y\":").append(entity.getBoundingBox().maxY).append(",");
+		json.append("\"max_z\":").append(entity.getBoundingBox().maxZ);
+		json.append("}");
+
+		if (entity instanceof LivingEntity living) {
+			json.append(",");
+
+			json.append("\"health\":")
+					.append(living.getHealth())
+					.append(",");
+
+			json.append("\"max_health\":")
+					.append(living.getMaxHealth())
+					.append(",");
+
+			json.append("\"absorption\":")
+					.append(living.getAbsorptionAmount())
+					.append(",");
+
+			json.append("\"armor\":")
+					.append(living.getArmorValue())
+					.append(",");
+
+			json.append("\"death_time\":")
+					.append(living.deathTime)
+					.append(",");
+
+			json.append("\"hurt_time\":")
+					.append(living.hurtTime);
+		}
+
+		json.append("}");
+
+		return json.toString();
 	}
 
 	private String getBlockName(BlockState state) {
