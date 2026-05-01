@@ -10,6 +10,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 
 import org.joml.Vector3f;
 
@@ -445,112 +446,85 @@ public class MineBridgeClient implements ClientModInitializer {
 	}
 
 	private String entityToJson(Entity entity) {
-		StringBuilder json = new StringBuilder();
+		Minecraft client = Minecraft.getInstance();
 
+		boolean isLocal = client.player != null && entity.getUUID().equals(client.player.getUUID());
+
+		StringBuilder json = new StringBuilder();
 		json.append("{");
 
-		json.append("\"name\":\"")
-				.append(escapeJson(entity.getName().getString()))
-				.append("\",");
+		json.append("\"name\":\"").append(escapeJson(entity.getName().getString())).append("\",");
+		json.append("\"type\":\"").append(escapeJson(BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString())).append("\",");
+		json.append("\"uuid\":\"").append(escapeJson(entity.getUUID().toString())).append("\",");
+		json.append("\"id\":").append(entity.getId()).append(",");
 
-		json.append("\"type\":\"")
-				.append(escapeJson(BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString()))
-				.append("\",");
+		json.append("\"position\":[")
+				.append(entity.getX()).append(",")
+				.append(entity.getY()).append(",")
+				.append(entity.getZ()).append("],");
 
-		json.append("\"uuid\":\"")
-				.append(escapeJson(entity.getUUID().toString()))
-				.append("\",");
-
-		json.append("\"id\":")
-				.append(entity.getId())
-				.append(",");
-
-		json.append("\"is_living\":")
-				.append(entity instanceof LivingEntity)
-				.append(",");
-
-		json.append("\"is_player\":")
-				.append(entity instanceof Player)
-				.append(",");
-
-		json.append("\"is_alive\":")
-				.append(entity.isAlive())
-				.append(",");
-
-		json.append("\"is_on_ground\":")
-				.append(entity.onGround())
-				.append(",");
-
-		json.append("\"is_sprinting\":")
-				.append(entity.isSprinting())
-				.append(",");
-
-		json.append("\"is_swimming\":")
-				.append(entity.isSwimming())
-				.append(",");
-
-		json.append("\"is_crouching\":")
-				.append(entity.isCrouching())
-				.append(",");
-
-		json.append("\"position\":{");
-		json.append("\"x\":").append(entity.getX()).append(",");
-		json.append("\"y\":").append(entity.getY()).append(",");
-		json.append("\"z\":").append(entity.getZ());
-		json.append("},");
-
-		json.append("\"block_position\":{");
-		json.append("\"x\":").append(entity.blockPosition().getX()).append(",");
-		json.append("\"y\":").append(entity.blockPosition().getY()).append(",");
-		json.append("\"z\":").append(entity.blockPosition().getZ());
-		json.append("},");
-
-		json.append("\"rotation\":{");
 		json.append("\"yaw\":").append(entity.getYRot()).append(",");
-		json.append("\"pitch\":").append(entity.getXRot());
-		json.append("},");
+		json.append("\"pitch\":").append(entity.getXRot()).append(",");
 
-		json.append("\"velocity\":{");
-		json.append("\"x\":").append(entity.getDeltaMovement().x).append(",");
-		json.append("\"y\":").append(entity.getDeltaMovement().y).append(",");
-		json.append("\"z\":").append(entity.getDeltaMovement().z);
-		json.append("},");
+		Vec3 velocity = entity.getDeltaMovement();
+		json.append("\"velocity\":[")
+				.append(velocity.x).append(",")
+				.append(velocity.y).append(",")
+				.append(velocity.z).append("],");
 
-		json.append("\"bounding_box\":{");
-		json.append("\"min_x\":").append(entity.getBoundingBox().minX).append(",");
-		json.append("\"min_y\":").append(entity.getBoundingBox().minY).append(",");
-		json.append("\"min_z\":").append(entity.getBoundingBox().minZ).append(",");
-		json.append("\"max_x\":").append(entity.getBoundingBox().maxX).append(",");
-		json.append("\"max_y\":").append(entity.getBoundingBox().maxY).append(",");
-		json.append("\"max_z\":").append(entity.getBoundingBox().maxZ);
-		json.append("}");
+		json.append("\"lerp_position\":[")
+				.append(entity.getX()).append(",")
+				.append(entity.getY()).append(",")
+				.append(entity.getZ()).append("],");
 
 		if (entity instanceof LivingEntity living) {
-			json.append(",");
-
-			json.append("\"health\":")
-					.append(living.getHealth())
-					.append(",");
-
-			json.append("\"max_health\":")
-					.append(living.getMaxHealth())
-					.append(",");
-
-			json.append("\"absorption\":")
-					.append(living.getAbsorptionAmount())
-					.append(",");
-
-			json.append("\"armor\":")
-					.append(living.getArmorValue())
-					.append(",");
-
-			json.append("\"death_time\":")
-					.append(living.deathTime)
-					.append(",");
-
-			json.append("\"hurt_time\":")
-					.append(living.hurtTime);
+			json.append("\"health\":").append(living.getHealth()).append(",");
+			json.append("\"maxHealth\":").append(living.getMaxHealth()).append(",");
+			json.append("\"armor\":").append(living.getArmorValue()).append(",");
+		} else {
+			json.append("\"health\":null,");
+			json.append("\"maxHealth\":null,");
+			json.append("\"armor\":null,");
 		}
+
+		json.append("\"local\":").append(isLocal).append(",");
+
+		json.append("\"passengers\":[");
+		boolean firstPassenger = true;
+
+		for (Entity passenger : entity.getPassengers()) {
+			if (!firstPassenger) {
+				json.append(",");
+			}
+
+			firstPassenger = false;
+
+			json.append("\"")
+					.append(escapeJson(passenger.getUUID().toString()))
+					.append("\"");
+		}
+
+		json.append("],");
+
+		if (entity instanceof Player player) {
+			json.append("\"hunger\":").append(player.getFoodData().getFoodLevel()).append(",");
+		} else {
+			json.append("\"hunger\":null,");
+		}
+
+		ItemStack heldItem = entity instanceof LivingEntity living
+				? living.getMainHandItem()
+				: ItemStack.EMPTY;
+
+		if (heldItem.isEmpty()) {
+			json.append("\"heldItem\":null,");
+		} else {
+			json.append("\"heldItem\":\"")
+					.append(escapeJson(BuiltInRegistries.ITEM.getKey(heldItem.getItem()).toString()))
+					.append("\",");
+		}
+
+		json.append("\"height\":").append(entity.getBbHeight());
 
 		json.append("}");
 

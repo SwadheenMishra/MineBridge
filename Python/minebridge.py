@@ -57,14 +57,14 @@ def test():
     pingResult = client.ping()
     print("Ping:", pingResult['response'], pingResult['latency'])
 
-    pos = client.get_player_position()
-    print("Position:", pos)
-    client.set_player_position(-100,75.0,-270)
-    print(client.send_message("get_block -100 70 -270"))
-    print(client.send_message("find_block 10 diamond_ore iron_ore"))
+    # pos = client.get_player_position()
+    # print("Position:", pos)
+    # client.set_player_position(-100,75.0,-270)
+    # print(client.send_message("get_block -100 70 -270"))
+    # print(client.send_message("find_block 10 diamond_ore iron_ore"))
 
-    print(client.get_local_player())
-    print(client.get_players())
+    # print(client.get_local_player())
+    # print(client.get_players())
     print(client.get_entities())
 
     client.close()
